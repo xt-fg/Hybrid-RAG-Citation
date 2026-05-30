@@ -2,8 +2,8 @@
 
 ## 后端开发
 
-- [ ] 1. 初始化后端项目结构 (uv + FastAPI)
-- [ ] 2. 创建 Mock 数据 - 多模态文档切片
+- [x] 1. 初始化后端项目结构 (uv + FastAPI)
+- [x] 2. 创建 Mock 数据 - 多模态文档切片
 - [ ] 3. 实现稀疏检索引擎 (jieba + rank_bm25)
 - [ ] 4. 实现稠密检索引擎 (OpenAI Embeddings + numpy)
 - [ ] 5. 实现 RRF 重排算法

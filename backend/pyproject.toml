@@ -1,0 +1,26 @@
+[project]
+name = "hybrid-rag-backend"
+version = "0.1.0"
+description = "Hybrid RAG with RRF reranking for domain-specific document Q&A"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "langchain-openai>=0.0.5",
+    "jieba>=0.42.1",
+    "rank-bm25>=0.2.2",
+    "numpy>=1.26.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "httpx>=0.26.0",
+]
