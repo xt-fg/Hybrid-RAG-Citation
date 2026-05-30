@@ -103,21 +103,40 @@ function App() {
         <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ padding: '24px 32px' }}>
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-400" style={{ padding: '0 32px' }}>
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center mb-4">
+              <div className="rounded-2xl bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center" style={{ width: '80px', height: '80px', marginBottom: '24px' }}>
                 <svg className="w-10 h-10 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
-              <p className="text-lg font-medium text-gray-500 mb-2">开始对话</p>
-              <p className="text-sm text-center max-w-md">
+              <p className="text-lg font-medium" style={{ color: '#6b7280', marginBottom: '12px' }}>开始对话</p>
+              <p className="text-sm text-center" style={{ color: '#9ca3af', maxWidth: '400px', lineHeight: '1.6' }}>
                 试试问我关于 Transformer 架构、RAG 系统、或 RRF 算法的问题
               </p>
-              <div className="mt-6 flex flex-wrap gap-2 justify-center">
+              <div style={{ marginTop: '32px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
                 {['什么是 RRF 算法？', '比较 BM25 和向量检索', 'RAG 系统如何生成引用？'].map((question) => (
                   <button
                     key={question}
                     onClick={() => handleSend(question)}
-                    className="px-4 py-2 text-sm bg-white border border-gray-200 rounded-full hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      color: '#374151',
+                      background: '#f9fafb',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '20px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f3f4f6';
+                      e.currentTarget.style.borderColor = '#d1d5db';
+                      e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.06)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#f9fafb';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
                   >
                     {question}
                   </button>
