@@ -100,9 +100,9 @@ function App() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 overflow-x-hidden">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{ padding: '24px 32px' }}>
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400">
+            <div className="h-full flex flex-col items-center justify-center text-gray-400" style={{ padding: '0 32px' }}>
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center mb-4">
                 <svg className="w-10 h-10 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -125,7 +125,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="max-w-[700px] mx-auto space-y-2">
+            <div style={{ maxWidth: '780px', margin: '0 auto' }}>
               {messages.map((message) => (
                 <ChatMessage
                   key={message.id}

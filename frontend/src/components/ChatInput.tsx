@@ -26,9 +26,9 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
     <div className="flex-shrink-0 bg-white" style={{
       borderTop: '1px solid #e5e7eb',
       boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
-      padding: '12px 16px',
+      padding: '14px 32px',
     }}>
-      <div className="flex items-center gap-2 max-w-[700px] mx-auto">
+      <div className="flex items-center gap-3" style={{ maxWidth: '780px', margin: '0 auto' }}>
         <input
           type="text"
           value={input}
