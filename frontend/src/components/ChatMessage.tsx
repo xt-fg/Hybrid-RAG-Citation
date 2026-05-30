@@ -10,9 +10,12 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
 
   // Parse citations in the message content
   const renderContent = (content: string) => {
-    // Add space before [Doc_X] if missing
-    const normalizedContent = content.replace(/([^\s])\[/g, '$1 [');
-    const parts = normalizedContent.split(/(\[Doc_\d+\])/g);
+    // Normalize content: add space before/after [Doc_X] if missing
+    const normalized = content
+      .replace(/([^\s])\[/g, '$1 [')
+      .replace(/\]([^\s.,;:!?])/g, '] $1');
+    
+    const parts = normalized.split(/(\[Doc_\d+\])/g);
     return parts.map((part, index) => {
       const citationMatch = part.match(/\[Doc_(\d+)\]/);
       if (citationMatch) {
@@ -21,7 +24,7 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
           <button
             key={index}
             onClick={() => onCitationClick(docId)}
-            className="inline-flex items-center px-2 py-0.5 mx-0.5 text-xs font-bold text-white bg-purple-500 rounded-full hover:bg-purple-600 transition-all cursor-pointer shadow-sm align-middle"
+            className="inline-block px-2 py-0.5 mx-0.5 text-xs font-bold text-white bg-purple-500 rounded-full hover:bg-purple-600 transition-all cursor-pointer shadow-sm align-middle leading-normal"
           >
             {part}
           </button>
@@ -31,28 +34,40 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
     });
   };
 
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6`}>
-      <div
-        className={`max-w-[85%] rounded-2xl ${
-          isUser
-            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-4 shadow-md'
-            : 'bg-white border border-gray-100 text-gray-800 shadow-sm'
-        }`}
-      >
-        {!isUser && (
-          <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-gray-100">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
-              <span className="text-white text-xs font-bold">AI</span>
-            </div>
-            <span className="text-sm font-medium text-gray-600">Hybrid RAG Assistant</span>
+  if (isUser) {
+    return (
+      <div className="flex justify-end mb-6 mt-5">
+        <div className="max-w-[85%] rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-4 shadow-md">
+          <div className="text-sm leading-relaxed whitespace-pre-wrap">
+            {message.content}
           </div>
-        )}
-        <div className={`text-sm leading-[1.8] ${isUser ? '' : 'px-5 py-4'}`}>
-          {isUser ? message.content : renderContent(message.content)}
+          <div className="mt-2 text-right">
+            <span className="text-xs text-blue-200">
+              {message.timestamp.toLocaleTimeString()}
+            </span>
+          </div>
         </div>
-        <div className={`${isUser ? 'mt-2 text-right' : 'px-5 pb-4 pt-1 border-t border-gray-50'}`}>
-          <span className={`text-xs ${isUser ? 'text-blue-200' : 'text-gray-400'}`}>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-start mb-6">
+      <div className="max-w-[85%] rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 pt-5 pb-3 border-b border-gray-100">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center shadow-sm flex-shrink-0">
+            <span className="text-white text-xs font-bold">AI</span>
+          </div>
+          <span className="text-sm font-medium text-gray-700">Hybrid RAG Assistant</span>
+        </div>
+        {/* Body */}
+        <div className="px-6 py-5 text-sm text-gray-800 leading-[1.7]">
+          {renderContent(message.content)}
+        </div>
+        {/* Footer */}
+        <div className="px-6 pb-4 pt-2">
+          <span className="text-xs text-gray-500">
             {message.timestamp.toLocaleTimeString()}
           </span>
         </div>
