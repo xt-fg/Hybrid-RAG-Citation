@@ -10,7 +10,9 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
 
   // Parse citations in the message content
   const renderContent = (content: string) => {
-    const parts = content.split(/(\[Doc_\d+\])/g);
+    // Add space before [Doc_X] if missing
+    const normalizedContent = content.replace(/([^\s])\[/g, '$1 [');
+    const parts = normalizedContent.split(/(\[Doc_\d+\])/g);
     return parts.map((part, index) => {
       const citationMatch = part.match(/\[Doc_(\d+)\]/);
       if (citationMatch) {
@@ -19,7 +21,7 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
           <button
             key={index}
             onClick={() => onCitationClick(docId)}
-            className="inline-flex items-center px-2 py-0.5 mx-1 text-xs font-semibold text-purple-700 bg-purple-100 rounded-full hover:bg-purple-200 transition-all cursor-pointer shadow-sm hover:shadow"
+            className="inline-flex items-center px-2 py-0.5 mx-0.5 text-xs font-bold text-white bg-purple-500 rounded-full hover:bg-purple-600 transition-all cursor-pointer shadow-sm align-middle"
           >
             {part}
           </button>
@@ -30,27 +32,29 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
   };
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-6`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
+        className={`max-w-[85%] rounded-2xl ${
           isUser
-            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
-            : 'bg-white border border-gray-200 text-gray-800'
+            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-4 shadow-md'
+            : 'bg-white border border-gray-100 text-gray-800 shadow-sm'
         }`}
       >
         {!isUser && (
-          <div className="flex items-center gap-2 mb-3 pb-2 border-b border-gray-100">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center shadow-md">
+          <div className="flex items-center gap-2 px-5 pt-4 pb-3 border-b border-gray-100">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
               <span className="text-white text-xs font-bold">AI</span>
             </div>
-            <span className="text-xs font-medium text-gray-500">Hybrid RAG Assistant</span>
+            <span className="text-sm font-medium text-gray-600">Hybrid RAG Assistant</span>
           </div>
         )}
-        <div className="text-sm leading-relaxed whitespace-pre-wrap" style={{whiteSpace: 'pre-wrap'}}>
+        <div className={`text-sm leading-[1.8] ${isUser ? '' : 'px-5 py-4'}`}>
           {isUser ? message.content : renderContent(message.content)}
         </div>
-        <div className={`text-xs mt-2 pt-2 border-t ${isUser ? 'border-blue-400 text-blue-200' : 'border-gray-100 text-gray-400'}`}>
-          {message.timestamp.toLocaleTimeString()}
+        <div className={`${isUser ? 'mt-2 text-right' : 'px-5 pb-4 pt-1 border-t border-gray-50'}`}>
+          <span className={`text-xs ${isUser ? 'text-blue-200' : 'text-gray-400'}`}>
+            {message.timestamp.toLocaleTimeString()}
+          </span>
         </div>
       </div>
     </div>

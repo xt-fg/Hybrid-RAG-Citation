@@ -23,21 +23,21 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-gray-200 bg-gradient-to-r from-gray-50 to-white p-4 flex-shrink-0">
+    <div className="border-t border-gray-100 bg-white p-4 flex-shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
       <div className="flex items-end gap-3 max-w-[700px] mx-auto">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="输入您的问题... (Enter 发送，Shift+Enter 换行)"
-          className="flex-1 resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32 shadow-sm"
+          className="flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32 placeholder:text-gray-400"
           rows={1}
           disabled={isLoading}
         />
         <button
           onClick={handleSend}
           disabled={!input.trim() || isLoading}
-          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-2xl font-medium text-sm hover:from-blue-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+          className="px-6 py-3.5 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-2xl font-medium text-sm hover:from-blue-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
