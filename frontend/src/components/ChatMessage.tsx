@@ -9,9 +9,11 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
   const isUser = message.role === 'user';
 
   const renderContent = (content: string) => {
+    // Force space before/after [Doc_X]
     const normalized = content
       .replace(/([^\s])\[/g, '$1 [')
-      .replace(/\]([^\s])/g, '] $1');
+      .replace(/\]([^\s.,;:!?])/g, '] $1')
+      .replace(/\](\s)/g, '] $1');
     const parts = normalized.split(/(\[Doc_\d+\])/g);
     return parts.map((part, index) => {
       const citationMatch = part.match(/\[Doc_(\d+)\]/);
@@ -21,14 +23,36 @@ export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
           <button
             key={index}
             onClick={() => onCitationClick(docId)}
-            className="inline-block px-2 py-0.5 text-xs font-bold text-white bg-purple-500 rounded-full hover:bg-purple-600 transition-all cursor-pointer shadow-sm align-middle"
-            style={{ lineHeight: '1.2', whiteSpace: 'nowrap', marginLeft: '2px', marginRight: '2px' }}
+            style={{
+              display: 'inline-block',
+              verticalAlign: 'middle',
+              padding: '3px 8px',
+              fontSize: '12px',
+              fontWeight: 500,
+              color: '#7c3aed',
+              backgroundColor: '#ede9fe',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              lineHeight: '1.2',
+              marginLeft: '4px',
+              marginRight: '4px',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#ddd6fe';
+              e.currentTarget.style.color = '#6d28d9';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#ede9fe';
+              e.currentTarget.style.color = '#7c3aed';
+            }}
           >
             {part}
           </button>
         );
       }
-      // Render text with proper paragraph handling
       return <span key={index}>{part}</span>;
     });
   };
