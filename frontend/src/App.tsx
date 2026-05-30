@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Message, Citation, SearchResult } from './types';
+import type { Message, Citation, SearchResult } from './types';
 import { queryDocuments } from './services/api';
 import { ChatMessage } from './components/ChatMessage';
 import { ChatInput } from './components/ChatInput';

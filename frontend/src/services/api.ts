@@ -1,4 +1,4 @@
-import { QueryRequest, QueryResponse } from '../types';
+import type { QueryRequest, QueryResponse } from '../types';
 
 const API_BASE_URL = '/api';
 

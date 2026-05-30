@@ -68,7 +68,7 @@ graph TB
 ### 算法公式
 
 $$
-\operatorname{RRF\_score}(d) = \sum_{i=1}^{n} \frac{w_i}{k + r(d, i)}
+\mathrm{RRF\_score}(d) = \sum_{i=1}^{n} \frac{w_i}{k + r(d, i)}
 $$
 
 其中：

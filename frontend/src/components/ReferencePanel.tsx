@@ -1,4 +1,4 @@
-import { Citation, SearchResult } from '../types';
+import type { Citation, SearchResult } from '../types';
 
 interface ReferencePanelProps {
   citations: Citation[];
