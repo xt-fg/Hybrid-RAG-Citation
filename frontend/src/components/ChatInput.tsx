@@ -23,32 +23,76 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-gray-200 bg-white flex-shrink-0" style={{boxShadow: '0 -2px 8px rgba(0,0,0,0.04)'}}>
-      <div className="flex items-end gap-3 max-w-[700px] mx-auto px-4 py-4">
-        <textarea
+    <div className="flex-shrink-0 bg-white" style={{
+      borderTop: '1px solid #e5e7eb',
+      boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
+      padding: '12px 16px',
+    }}>
+      <div className="flex items-center gap-2 max-w-[700px] mx-auto">
+        <input
+          type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="输入您的问题... (Enter 发送，Shift+Enter 换行)"
-          className="flex-1 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32 placeholder:text-gray-400"
-          rows={1}
+          placeholder="输入您的问题... (Enter 发送)"
           disabled={isLoading}
+          style={{
+            flex: 1,
+            height: '44px',
+            backgroundColor: '#f3f4f6',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            padding: '0 12px',
+            fontSize: '14px',
+            color: '#1f2937',
+            outline: 'none',
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = '#3b82f6';
+            e.target.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.15)';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = '#d1d5db';
+            e.target.style.boxShadow = 'none';
+          }}
         />
         <button
           onClick={handleSend}
           disabled={!input.trim() || isLoading}
-          className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium text-sm hover:from-blue-600 hover:to-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex-shrink-0"
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
+            border: 'none',
+            background: (!input.trim() || isLoading) ? '#a5b4fc' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            color: 'white',
+            cursor: (!input.trim() || isLoading) ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            if (input.trim() && !isLoading) {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #4f46e5, #7c3aed)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (input.trim() && !isLoading) {
+              e.currentTarget.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+            }
+          }}
         >
           {isLoading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              思考中...
-            </span>
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
           ) : (
-            '发送'
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m0 0l-7 7m7-7l7 7" />
+            </svg>
           )}
         </button>
       </div>
