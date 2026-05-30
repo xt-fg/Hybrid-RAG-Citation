@@ -81,20 +81,20 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
       {/* Left: Chat Panel */}
-      <div className="flex-1 flex flex-col bg-white shadow-lg min-w-0">
+      <div className="flex-1 flex flex-col bg-white min-w-0 border-r border-gray-200">
         {/* Header */}
-        <div className="border-b border-gray-200 px-4 py-3 flex-shrink-0">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3 flex-shrink-0 shadow-md">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Hybrid RAG 智能问答</h1>
-              <p className="text-xs text-gray-500">基于混合检索与 RRF 重排的文档问答系统</p>
+              <h1 className="text-lg font-bold text-white">Hybrid RAG 智能问答</h1>
+              <p className="text-xs text-white/80">基于混合检索与 RRF 重排的文档问答系统</p>
             </div>
           </div>
         </div>
@@ -125,7 +125,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="max-w-[700px] mx-auto">
+            <div className="max-w-[700px] mx-auto space-y-2">
               {messages.map((message) => (
                 <ChatMessage
                   key={message.id}
