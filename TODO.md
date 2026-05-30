@@ -7,9 +7,9 @@
 - [x] 3. 实现稀疏检索引擎 (jieba + rank_bm25)
 - [x] 4. 实现稠密检索引擎 (OpenAI Embeddings + numpy)
 - [x] 5. 实现 RRF 重排算法
-- [ ] 6. 实现混合检索 Pipeline
-- [ ] 7. 实现 LLM 调用与引用生成
-- [ ] 8. 创建 FastAPI 路由与 API
+- [x] 6. 实现混合检索 Pipeline
+- [x] 7. 实现 LLM 调用与引用生成
+- [x] 8. 创建 FastAPI 路由与 API
 
 ## 前端开发
 
