@@ -188,6 +188,25 @@ chmod +x start.sh
 ./start.sh
 ```
 
+### 6. 停止服务
+
+**手动停止：**
+
+```bash
+# 停止后端（Ctrl+C 或）
+pkill -f uvicorn
+
+# 停止前端（Ctrl+C 或）
+pkill -f vite
+```
+
+**一键停止：**
+
+```bash
+chmod +x stop.sh
+./stop.sh
+```
+
 ---
 
 ## 📁 项目结构
