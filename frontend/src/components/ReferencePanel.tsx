@@ -9,7 +9,7 @@ interface ReferencePanelProps {
 export function ReferencePanel({ citations, retrievedDocs, highlightedDocId }: ReferencePanelProps) {
   if (!citations || citations.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-gray-400 p-6">
+      <div className="h-full flex flex-col items-center justify-center text-gray-400 p-4">
         <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
@@ -21,9 +21,9 @@ export function ReferencePanel({ citations, retrievedDocs, highlightedDocId }: R
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+        <h3 className="font-semibold text-gray-800 flex items-center gap-2 text-sm">
           <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -34,7 +34,7 @@ export function ReferencePanel({ citations, retrievedDocs, highlightedDocId }: R
         </p>
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {retrievedDocs.map((result, index) => {
           const isHighlighted = highlightedDocId === result.doc.id;
           const citation = citations.find(c => c.doc_id === result.doc.id);
@@ -43,7 +43,7 @@ export function ReferencePanel({ citations, retrievedDocs, highlightedDocId }: R
             <div
               key={result.doc.id}
               id={`doc-${result.doc.id}`}
-              className={`rounded-lg border p-4 transition-all duration-300 ${
+              className={`rounded-lg border p-3 transition-all duration-300 ${
                 isHighlighted
                   ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200'
                   : 'border-gray-200 bg-white hover:border-gray-300'
@@ -76,7 +76,7 @@ export function ReferencePanel({ citations, retrievedDocs, highlightedDocId }: R
                 {result.doc.page && <span> · 第{result.doc.page}页</span>}
               </div>
               
-              <div className="text-sm text-gray-700 leading-relaxed line-clamp-6">
+              <div className="text-xs text-gray-700 leading-relaxed line-clamp-4">
                 {citation?.snippet || result.doc.content}
               </div>
               

@@ -81,11 +81,11 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Left: Chat Panel */}
-      <div className="flex-1 flex flex-col bg-white shadow-lg">
+      <div className="flex-1 flex flex-col bg-white shadow-lg min-w-0">
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
+        <div className="border-b border-gray-200 px-4 py-3 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,7 +100,7 @@ function App() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 overflow-x-hidden">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-400">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center mb-4">
@@ -125,7 +125,7 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-[700px] mx-auto">
               {messages.map((message) => (
                 <ChatMessage
                   key={message.id}
@@ -143,7 +143,7 @@ function App() {
       </div>
 
       {/* Right: Reference Panel */}
-      <div className="w-[420px] border-l border-gray-200 bg-gray-50">
+      <div className="w-[380px] flex-shrink-0 border-l border-gray-200 bg-gray-50 overflow-hidden">
         <ReferencePanel
           citations={currentCitations}
           retrievedDocs={currentDocs}

@@ -23,8 +23,8 @@ export function ChatInput({ onSend, isLoading }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-gray-200 bg-white p-4">
-      <div className="flex items-end gap-3 max-w-4xl mx-auto">
+    <div className="border-t border-gray-200 bg-white p-3 flex-shrink-0">
+      <div className="flex items-end gap-3 max-w-[700px] mx-auto">
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
