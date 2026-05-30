@@ -10,10 +10,14 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     
-    # OpenAI
-    OPENAI_API_KEY: str = ""
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    # LLM Configuration
+    LLM_API_KEY: str = ""
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_MODEL: str = "gpt-4o-mini"
+    
+    # Embedding Configuration (独立配置)
+    EMBEDDING_API_KEY: str = ""
+    EMBEDDING_BASE_URL: str = "https://api.openai.com/v1"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     
     # RAG Settings

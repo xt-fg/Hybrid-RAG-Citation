@@ -13,8 +13,8 @@ class DenseRetriever:
         self.settings = get_settings()
         self.embeddings = OpenAIEmbeddings(
             model=self.settings.EMBEDDING_MODEL,
-            openai_api_key=self.settings.OPENAI_API_KEY,
-            openai_api_base=self.settings.OPENAI_BASE_URL,
+            openai_api_key=self.settings.EMBEDDING_API_KEY,
+            openai_api_base=self.settings.EMBEDDING_BASE_URL,
         )
         self.documents: List[DocumentChunk] = []
         self.doc_embeddings: Optional[np.ndarray] = None

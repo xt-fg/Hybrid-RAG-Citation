@@ -13,8 +13,8 @@ class LLMService:
         self.settings = get_settings()
         self.llm = ChatOpenAI(
             model=self.settings.LLM_MODEL,
-            openai_api_key=self.settings.OPENAI_API_KEY,
-            openai_api_base=self.settings.OPENAI_BASE_URL,
+            openai_api_key=self.settings.LLM_API_KEY,
+            openai_api_base=self.settings.LLM_BASE_URL,
             temperature=0.3,
         )
         
