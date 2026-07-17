@@ -1,10 +1,9 @@
 """Hybrid retrieval pipeline combining sparse and dense retrieval"""
 from typing import List, Dict
-from app.models.schemas import DocumentChunk, SearchResult
+from app.models.schemas import DocumentChunk, ProviderConfig, SearchResult
 from app.services.sparse_retriever import SparseRetriever
 from app.services.dense_retriever import DenseRetriever
 from app.services.rrf_fusion import RRFFusion
-from app.data.mock_docs import get_mock_documents
 from app.core.config import get_settings
 
 
@@ -18,22 +17,54 @@ class HybridRetriever:
         self.rrf_fusion = RRFFusion(k=self.settings.RRF_K)
         self.doc_map: Dict[str, DocumentChunk] = {}
         self._initialized = False
+        self.dense_available = False
+        self.dense_error: str | None = None
         
-    def initialize(self) -> None:
-        """Initialize retrievers with mock documents"""
+    def initialize(self, documents: List[DocumentChunk] | None = None) -> None:
+        """Initialize retrievers with persisted knowledge-base documents."""
         if self._initialized:
             return
-            
-        # Load mock documents
-        documents = get_mock_documents()
-        
+
+        # Restore dense retrieval from the server-side provider configuration.
+        # Provider failures are handled by replace_documents and degrade to BM25.
+        self.replace_documents(documents or [])
+        self._initialized = True
+
+    def replace_documents(
+        self,
+        documents: List[DocumentChunk],
+        provider_config: ProviderConfig | None = None,
+        build_dense: bool = True,
+    ) -> None:
+        """Atomically rebuild the in-memory retrieval indices."""
         # Build document map
         self.doc_map = {doc.id: doc for doc in documents}
-        
-        # Build indices
+
+        # Sparse retrieval remains available without any external provider.
         self.sparse_retriever.build_index(documents)
-        self.dense_retriever.build_index(documents)
-        
+
+        self.dense_available = False
+        self.dense_error = None
+        frontend_embedding_key = (
+            provider_config.embedding_api_key.get_secret_value()
+            if provider_config and provider_config.embedding_api_key
+            else ""
+        )
+        if documents and not build_dense:
+            self.dense_retriever.build_index([])
+            self.dense_error = "等待可用的 Embedding 配置，当前使用 BM25"
+        elif documents and (frontend_embedding_key or self.settings.EMBEDDING_API_KEY):
+            try:
+                self.dense_retriever.build_index(documents, provider_config)
+                self.dense_available = True
+            except Exception as exc:
+                # A missing or temporarily unavailable embedding provider should
+                # not make document management and lexical retrieval unusable.
+                self.dense_retriever.build_index([])
+                self.dense_error = str(exc)
+        elif documents:
+            self.dense_error = "未配置 Embedding API，已降级为 BM25"
+
         self._initialized = True
         
     def search(
@@ -54,10 +85,13 @@ class HybridRetriever:
         """
         if not self._initialized:
             self.initialize()
+
+        if not self.doc_map:
+            return []
             
         top_k = top_k or self.settings.TOP_K
         
-        if use_rrf:
+        if use_rrf and self.dense_available:
             return self._search_with_rrf(query, top_k)
         else:
             return self._search_simple(query, top_k)

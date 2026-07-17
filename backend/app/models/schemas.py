@@ -1,5 +1,6 @@
 """Pydantic models for request/response"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
+from datetime import datetime
 from typing import List, Optional
 
 
@@ -21,10 +22,21 @@ class SearchResult(BaseModel):
     source_type: str = Field(..., description="bm25, dense, or rrf")
 
 
+class ProviderConfig(BaseModel):
+    """Optional browser-provided model configuration with request-level priority."""
+    llm_api_key: Optional[SecretStr] = None
+    llm_base_url: Optional[str] = Field(None, max_length=500)
+    llm_model: Optional[str] = Field(None, max_length=200)
+    embedding_api_key: Optional[SecretStr] = None
+    embedding_base_url: Optional[str] = Field(None, max_length=500)
+    embedding_model: Optional[str] = Field(None, max_length=200)
+
+
 class QueryRequest(BaseModel):
     """Query request"""
     query: str = Field(..., min_length=1, max_length=1000, description="User query")
     top_k: Optional[int] = Field(5, ge=1, le=20, description="Number of results")
+    provider_config: Optional[ProviderConfig] = None
 
 
 class Citation(BaseModel):
@@ -33,6 +45,7 @@ class Citation(BaseModel):
     doc_source: str
     snippet: str
     relevance_score: float
+    page: Optional[int] = None
 
 
 class QueryResponse(BaseModel):
@@ -41,3 +54,18 @@ class QueryResponse(BaseModel):
     answer: str
     citations: List[Citation]
     retrieved_docs: List[SearchResult]
+
+
+class KnowledgeDocument(BaseModel):
+    """A source document stored in the knowledge base."""
+    id: str
+    name: str
+    size: int
+    chunk_count: int
+    status: str = "ready"
+    created_at: datetime
+
+
+class DocumentListResponse(BaseModel):
+    total: int
+    documents: List[KnowledgeDocument]

@@ -1,14 +1,16 @@
 """Application configuration"""
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
     """Application settings"""
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
     # API
-    APP_NAME: str = "Hybrid RAG API"
-    APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    APP_NAME: str = "知源文档知识服务"
+    APP_VERSION: str = "1.1.0"
+    DEBUG: bool = False
     
     # LLM Configuration
     LLM_API_KEY: str = ""
@@ -25,11 +27,13 @@ class Settings(BaseSettings):
     TOP_K: int = 5   # Number of results to return
     BM25_WEIGHT: float = 0.5
     DENSE_WEIGHT: float = 0.5
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    DENSE_MIN_SCORE: float = 0.2
 
+    # Knowledge base storage
+    STORAGE_DIR: str = "storage"
+    MAX_UPLOAD_MB: int = 25
+    CHUNK_SIZE: int = 900
+    CHUNK_OVERLAP: int = 120
 
 @lru_cache()
 def get_settings() -> Settings:

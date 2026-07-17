@@ -1,8 +1,9 @@
 """LLM service for generating answers with citations"""
+import re
 from typing import List
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from app.models.schemas import SearchResult, Citation
+from app.models.schemas import Citation, ProviderConfig, SearchResult
 from app.core.config import get_settings
 
 
@@ -11,16 +12,37 @@ class LLMService:
     
     def __init__(self):
         self.settings = get_settings()
-        self.llm = ChatOpenAI(
-            model=self.settings.LLM_MODEL,
-            openai_api_key=self.settings.LLM_API_KEY,
-            openai_api_base=self.settings.LLM_BASE_URL,
-            temperature=0.3,
+        self.llm: ChatOpenAI | None = None
+
+    def _get_llm(self, provider_config: ProviderConfig | None = None) -> ChatOpenAI:
+        frontend_key = (
+            provider_config.llm_api_key.get_secret_value()
+            if provider_config and provider_config.llm_api_key
+            else ""
         )
+        if frontend_key:
+            return ChatOpenAI(
+                model=provider_config.llm_model or self.settings.LLM_MODEL,
+                openai_api_key=frontend_key,
+                openai_api_base=provider_config.llm_base_url or self.settings.LLM_BASE_URL,
+                temperature=0.3,
+            )
+
+        if not self.settings.LLM_API_KEY:
+            raise ValueError("未配置 LLM_API_KEY，暂时无法生成回答")
+        if self.llm is None:
+            self.llm = ChatOpenAI(
+                model=self.settings.LLM_MODEL,
+                openai_api_key=self.settings.LLM_API_KEY,
+                openai_api_base=self.settings.LLM_BASE_URL,
+                temperature=0.3,
+            )
+        return self.llm
         
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(self, source_count: int) -> str:
         """Build system prompt for RAG with citations"""
-        return """你是一个专业的文档问答助手。请根据提供的参考文档回答用户的问题。
+        allowed_sources = "、".join(f"[Doc_{index}]" for index in range(1, source_count + 1))
+        return f"""你是一个专业的文档问答助手。请根据提供的参考文档回答用户的问题。
 
 ## 回答规则：
 1. 只基于提供的参考文档回答问题，不要编造信息
@@ -28,6 +50,8 @@ class LLMService:
 3. 如果文档中没有相关信息，请如实说明
 4. 回答要准确、简洁、专业
 5. 可以引用多个文档来支持一个观点
+6. 本次仅允许使用这些引用：{allowed_sources}
+7. 严禁输出不存在或超出上述范围的引用编号
 
 ## 引用格式示例：
 根据文档，Transformer架构采用了自注意力机制 [Doc_1]。BERT模型包含12层编码器 [Doc_1]，而GPT-3则有96层 [Doc_1]。
@@ -38,10 +62,11 @@ class LLMService:
         """Build context from search results"""
         context_parts = ["## 参考文档：\n"]
         
-        for result in search_results:
+        for index, result in enumerate(search_results, start=1):
             doc = result.doc
             context_parts.append(
-                f"### [{doc.id}] (来源: {doc.source})\n"
+                f"### [Doc_{index}] (来源: {doc.source}"
+                f"{f', 第 {doc.page} 页' if doc.page else ''})\n"
                 f"{doc.content}\n"
             )
             
@@ -50,7 +75,8 @@ class LLMService:
     def generate_answer(
         self,
         query: str,
-        search_results: List[SearchResult]
+        search_results: List[SearchResult],
+        provider_config: ProviderConfig | None = None,
     ) -> tuple[str, List[Citation]]:
         """Generate answer with citations
         
@@ -62,7 +88,7 @@ class LLMService:
             Tuple of (answer, citations)
         """
         # Build messages
-        system_prompt = self._build_system_prompt()
+        system_prompt = self._build_system_prompt(len(search_results))
         context = self._build_context(search_results)
         
         user_message = f"""{context}
@@ -70,7 +96,8 @@ class LLMService:
 ## 用户问题：
 {query}
 
-请根据以上参考文档回答问题，并在每个陈述句后附带 [Doc_X] 形式的引用。"""
+请根据以上参考文档回答问题，并在每个陈述句后附带引用。
+只能使用 [Doc_1] 到 [Doc_{len(search_results)}]，不得生成范围外编号。"""
         
         messages = [
             SystemMessage(content=system_prompt),
@@ -78,12 +105,42 @@ class LLMService:
         ]
         
         # Generate response
-        response = self.llm.invoke(messages)
-        answer = response.content
+        response = self._get_llm(provider_config).invoke(messages)
+        raw_answer = response.content
+        answer = self._resolve_citation_aliases(raw_answer, search_results)
         
-        # Extract citations from search results
+        citations = self._build_citations(answer, search_results)
+        return answer, citations
+
+    @staticmethod
+    def _resolve_citation_aliases(answer: str, search_results: List[SearchResult]) -> str:
+        """Replace prompt-facing Doc_N aliases with stable chunk IDs."""
+        alias_map = {
+            f"Doc_{index}": result.doc.id
+            for index, result in enumerate(search_results, start=1)
+        }
+
+        def replace_alias(match: re.Match[str]) -> str:
+            alias = match.group(1)
+            target = alias_map.get(alias)
+            return f"[{target}]" if target else ""
+
+        resolved = re.sub(r"\[(Doc_\d+)\]", replace_alias, answer)
+        resolved = re.sub(r"[ \t]{2,}", " ", resolved)
+        return re.sub(r"\s+([，。；：！？,.])", r"\1", resolved).strip()
+
+    @staticmethod
+    def _build_citations(answer: str, search_results: List[SearchResult]) -> List[Citation]:
+        """Build a verified, answer-ordered citation list."""
+        # Only return source IDs that the answer actually cites. Invalid IDs
+        # generated by the model are discarded instead of becoming fake proof.
+        cited_ids = list(dict.fromkeys(re.findall(r"\[([A-Za-z0-9_-]+)\]", answer)))
+        result_by_id = {result.doc.id: result for result in search_results}
         citations = []
-        for result in search_results:
+        for doc_id in cited_ids:
+            result = result_by_id.get(doc_id)
+            if result is None:
+                continue
             doc = result.doc
             # Get first 200 chars as snippet
             snippet = doc.content[:200] + "..." if len(doc.content) > 200 else doc.content
@@ -91,7 +148,8 @@ class LLMService:
                 doc_id=doc.id,
                 doc_source=doc.source,
                 snippet=snippet,
-                relevance_score=result.score
+                relevance_score=result.score,
+                page=doc.page,
             ))
             
-        return answer, citations
+        return citations

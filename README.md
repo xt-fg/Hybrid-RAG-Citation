@@ -1,337 +1,138 @@
-<div align="center">
+# 知源 · 文档知识工作台
 
-# 🔍 Hybrid RAG Citation
+一个可实际使用的文档知识库：上传自己的 PDF、TXT 或 Markdown，系统完成解析与索引，再通过混合检索生成带有可核验原文引用的回答。
 
-### 基于混合检索与 RRF 重排的垂域文档智能问答系统
+## 能力
 
-[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+- 真实文档入库：文件上传、文本提取、分块、持久化与删除
+- 混合检索：BM25 与 Embedding 双路召回，使用 RRF 融合排序
+- 自动降级：Embedding 服务不可用时保留 BM25 检索能力
+- 可验证引用：只接受回答中实际出现且属于本次检索结果的引用 ID
+- 原文溯源：引用保留文件名和 PDF 页码，可直接打开原始文件
+- 知识库工作台：文档状态、片段数量、文件大小和真实上传入口
+- 会话体验：本地保存对话、重新开始、复制回答和逐消息引用定位
+- 前端 API 配置：浏览器中的配置优先于服务器 `.env`，鉴权失败后可原地重试
+- 可部署：提供 Docker Compose、健康检查和持久化数据卷
 
-</div>
+## 使用流程
 
----
-
-## 📖 项目简介
-
-Hybrid RAG Citation 是一个**工业级的文档智能问答系统**，通过融合稀疏检索（BM25）和稠密检索（向量相似度）的优势，实现高精度的文档检索与问答。系统支持**精准引用溯源**，每个回答都附带原文引用，增强可信度。
-
-### ✨ 核心特性
-
-- 🔄 **混合检索引擎** - BM25 稀疏检索 + 向量稠密检索双路召回
-- 📊 **RRF 重排算法** - Reciprocal Rank Fusion 多路结果融合
-- 📝 **精准引用溯源** - 回答附带 `[Doc_X]` 引用标识，一键定位原文
-- 🎯 **中文优化** - jieba 分词 + 中文 Embedding 模型
-- 💎 **优雅 UI** - 类 Kimi/智谱清言的对话界面，右侧参考文档面板
-
----
-
-## 🏗️ 系统架构
-
-```mermaid
-graph TB
-    subgraph "前端 (React + TypeScript)"
-        UI[对话界面] --> |发送问题| API
-        API --> |返回回答| UI
-        UI --> REF[参考文档面板]
-    end
-    
-    subgraph "后端 (FastAPI)"
-        API[API Layer] --> PIPE[RAG Pipeline]
-        PIPE --> SPARSE[稀疏检索<br/>jieba + BM25]
-        PIPE --> DENSE[稠密检索<br/>OpenAI Embeddings]
-        SPARSE --> RRF[RRF 重排算法]
-        DENSE --> RRF
-        RRF --> LLM[LLM 生成<br/>+ 引用标注]
-        LLM --> |答案 + 引用| API
-    end
-    
-    subgraph "数据层"
-        DOCS[文档库] --> SPARSE
-        DOCS --> DENSE
-    end
-    
-    style RRF fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
-    style LLM fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+```text
+上传文档 → 解析并分块 → 构建 BM25/向量索引
+                            ↓
+打开原文 ← 核验引用 ← 生成带引用的回答 ← 混合检索
 ```
 
----
+## 本地启动
 
-## 🔬 RRF 算法详解
+需要 Python 3.10+、Node.js 18+ 和 [uv](https://docs.astral.sh/uv/)。
 
-### 什么是 RRF？
-
-**Reciprocal Rank Fusion (RRF)** 是一种高效的多路检索结果融合算法，由 Cormack 等学者在 2009 年提出。其核心思想是将不同检索器的排名列表进行加权融合。
-
-### 算法公式
-
-$$
-\mathrm{RRF\_score}(d) = \sum_{i=1}^{n} \frac{w_i}{k + r(d, i)}
-$$
-
-其中：
-- $d$ - 文档
-- $k$ - 平滑常数（默认 60），防止排名靠前的文档得分过高
-- $r(d, i)$ - 文档 $d$ 在第 $i$ 个检索器中的排名
-- $w_i$ - 第 $i$ 个检索器的权重
-
-### 为什么选择 RRF？
-
-| 优势 | 说明 |
-|------|------|
-| 🎯 无需训练 | 即插即用，无需标注数据 |
-| 📏 尺度无关 | 对不同检索器的得分尺度不敏感 |
-| 🔀 天然融合 | 支持任意数量的检索器 |
-| ⚡ 高效计算 | 时间复杂度 O(n)，适合实时应用 |
-
-### 示例计算
-
-假设有两个检索器返回的结果：
-
-| 文档 | BM25 排名 | 向量检索排名 |
-|------|-----------|--------------|
-| Doc_A | 1 | 3 |
-| Doc_B | 2 | 1 |
-| Doc_C | 3 | 2 |
-
-RRF 计算（k=60）：
-- Doc_A: 1/(60+1) + 1/(60+3) = 0.0164 + 0.0159 = **0.0323**
-- Doc_B: 1/(60+2) + 1/(60+1) = 0.0161 + 0.0164 = **0.0325** ⭐
-- Doc_C: 1/(60+3) + 1/(60+2) = 0.0159 + 0.0161 = **0.0320**
-
-最终排序：Doc_B > Doc_A > Doc_C
-
----
-
-## 🛠️ 技术栈
-
-### 后端
-
-| 技术 | 用途 |
-|------|------|
-| Python 3.10+ | 主语言 |
-| FastAPI | Web 框架 |
-| uv | 包管理器 |
-| jieba | 中文分词 |
-| rank_bm25 | BM25 稀疏检索 |
-| numpy | 向量计算 |
-| langchain-openai | LLM & Embedding API |
-
-### 前端
-
-| 技术 | 用途 |
-|------|------|
-| React 18 | UI 框架 |
-| TypeScript | 类型安全 |
-| Vite | 构建工具 |
-| TailwindCSS | 样式框架 |
-
----
-
-## 🚀 快速开始
-
-### 前置要求
-
-- Python 3.10+
-- Node.js 18+
-- [uv](https://github.com/astral-sh/uv) 包管理器
-- OpenAI API Key
-
-### 1. 克隆项目
-
-```bash
-git clone https://github.com/yourusername/Hybrid-RAG-Citation.git
-cd Hybrid-RAG-Citation
-```
-
-### 2. 配置环境变量
+1. 创建后端配置：
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-编辑 `backend/.env`，填入你的 OpenAI API Key：
+2. 设置模型服务：
 
 ```env
-OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=your-key
+LLM_BASE_URL=https://api.openai.com/v1
 LLM_MODEL=gpt-4o-mini
+
+EMBEDDING_API_KEY=your-key
+EMBEDDING_BASE_URL=https://api.openai.com/v1
 EMBEDDING_MODEL=text-embedding-3-small
 ```
 
-### 3. 启动后端
+LLM 与 Embedding 可以使用不同的 OpenAI 兼容服务。Embedding 配置不可用时系统会自动使用 BM25，但生成回答仍然需要可用的 LLM。
+
+也可以点击界面右上角的“API 配置”直接填写。前端配置具有请求级最高优先级，密钥仅保存在当前标签页的 `sessionStorage`，关闭标签页后清除；它仍会发送到本项目后端，请只在可信部署环境中使用。
+
+3. 安装并启动：
 
 ```bash
 cd backend
-uv sync  # 安装依赖
-uv run uvicorn app.main:app --reload --port 8000
+uv sync
+uv run uvicorn app.main:app --reload --port 8002
 ```
 
-后端将在 http://localhost:8000 启动，API 文档访问 http://localhost:8000/docs
-
-### 4. 启动前端
+在另一个终端运行：
 
 ```bash
 cd frontend
-npm install  # 安装依赖
+npm install
 npm run dev
 ```
 
-前端将在 http://localhost:5173 启动
+访问 <http://localhost:5175>，API 文档位于 <http://localhost:8002/docs>。
 
-### 5. 一键启动（可选）
+也可以在仓库根目录运行 `./start.sh`，使用 `./stop.sh` 停止。
 
-```bash
-chmod +x start.sh
-./start.sh
-```
+## Docker 部署
 
-### 6. 停止服务
-
-**手动停止：**
+配置好 `backend/.env` 后运行：
 
 ```bash
-# 停止后端（Ctrl+C 或）
-pkill -f uvicorn
-
-# 停止前端（Ctrl+C 或）
-pkill -f vite
+docker compose up --build -d
 ```
 
-**一键停止：**
+访问 <http://localhost:8082>。上传文件和知识库清单保存在 `knowledge_data` 数据卷中。
+
+## API
+
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| `GET` | `/api/health` | 服务、文档数量与检索模式状态 |
+| `GET` | `/api/documents` | 获取知识库文档 |
+| `POST` | `/api/documents` | 上传并索引文档，字段名为 `file` |
+| `POST` | `/api/documents/reindex` | 使用前端 Embedding 配置重建索引 |
+| `DELETE` | `/api/documents/{id}` | 删除文档并刷新索引 |
+| `GET` | `/api/documents/{id}/file` | 打开引用对应的原始文件 |
+| `POST` | `/api/query` | 检索文档并生成引用回答 |
+
+查询示例：
 
 ```bash
-chmod +x stop.sh
-./stop.sh
+curl http://localhost:8002/api/query \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"总结文档中的核心结论","top_k":6}'
 ```
 
----
+## 项目结构
 
-## 📁 项目结构
-
-```
-Hybrid-RAG-Citation/
-├── backend/                    # 后端服务
-│   ├── app/
-│   │   ├── api/               # API 路由
-│   │   │   └── routes.py
-│   │   ├── core/              # 配置
-│   │   │   └── config.py
-│   │   ├── data/              # Mock 数据
-│   │   │   └── mock_docs.py
-│   │   ├── models/            # 数据模型
-│   │   │   └── schemas.py
-│   │   ├── services/          # 业务逻辑
-│   │   │   ├── sparse_retriever.py   # BM25 稀疏检索
-│   │   │   ├── dense_retriever.py    # 向量稠密检索
-│   │   │   ├── rrf_fusion.py         # RRF 融合算法
-│   │   │   ├── hybrid_retriever.py   # 混合检索 Pipeline
-│   │   │   └── llm_service.py        # LLM 调用服务
-│   │   └── main.py            # FastAPI 入口
-│   ├── pyproject.toml
-│   └── .env.example
-├── frontend/                   # 前端应用
-│   ├── src/
-│   │   ├── components/        # React 组件
-│   │   │   ├── ChatMessage.tsx
-│   │   │   ├── ChatInput.tsx
-│   │   │   └── ReferencePanel.tsx
-│   │   ├── services/          # API 调用
-│   │   ├── types/             # TypeScript 类型
-│   │   ├── App.tsx            # 主应用
-│   │   └── main.tsx           # 入口
-│   └── package.json
-├── start.sh                    # 一键启动脚本
-├── TODO.md                     # 开发任务清单
-└── README.md                   # 项目说明
+```text
+backend/
+  app/api/                 API 与文档管理路由
+  app/models/              请求、响应和知识库模型
+  app/services/
+    document_store.py      文件解析、持久化和分块
+    sparse_retriever.py    BM25 检索
+    dense_retriever.py     Embedding 检索
+    rrf_fusion.py          RRF 排序融合
+    hybrid_retriever.py    检索编排与降级
+    llm_service.py         回答生成与引用校验
+  tests/                   文档生命周期和引用测试
+frontend/
+  src/components/          对话、输入与引用面板
+  src/services/            文档和问答 API
+compose.yaml               单节点部署编排
 ```
 
----
+运行质量检查：
 
-## 📚 API 文档
-
-### 查询接口
-
-```http
-POST /api/query
-Content-Type: application/json
-
-{
-  "query": "什么是 RRF 算法？",
-  "top_k": 5
-}
+```bash
+cd backend && uv run pytest -q
+cd frontend && npm run lint && npm run build
 ```
 
-**响应示例：**
+## 数据与边界
 
-```json
-{
-  "query": "什么是 RRF 算法？",
-  "answer": "RRF (Reciprocal Rank Fusion) 是一种多路检索结果融合算法 [Doc_4]。其核心公式为 Score = 1/(k+Rank) [Doc_4]...",
-  "citations": [
-    {
-      "doc_id": "Doc_4",
-      "doc_source": "多路检索融合技术综述.pdf",
-      "snippet": "Reciprocal Rank Fusion (RRF) 算法详解...",
-      "relevance_score": 0.95
-    }
-  ],
-  "retrieved_docs": [...]
-}
-```
+- 默认上传上限为 25MB，可通过 `MAX_UPLOAD_MB` 调整。
+- BM25 只保留与问题存在词项重合的片段；向量结果默认最低相似度为 `0.2`，可通过 `DENSE_MIN_SCORE` 调整。
+- 知识库默认保存在 `backend/storage/`，该运行时目录不会提交到 Git。
+- 当前持久化方案面向单节点部署。需要多实例或大规模文档时，可将文档元数据迁移到 PostgreSQL，并将向量索引迁移到 pgvector、Qdrant 等存储。
+- 扫描版 PDF 需要额外接入 OCR；当前 PDF 解析提取文件内已有的文本层。
 
----
+## License
 
-## 🎯 使用示例
-
-### 示例问题
-
-1. **技术概念**
-   - "什么是 RRF 算法？它有什么优势？"
-   - "比较 BM25 和向量检索的区别"
-   - "Transformer 架构的核心参数有哪些？"
-
-2. **系统设计**
-   - "如何设计一个 RAG 系统的引用生成机制？"
-   - "混合检索系统应该如何架构？"
-
-3. **性能优化**
-   - "检索系统有哪些性能优化策略？"
-
----
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
----
-
-## 📄 License
-
-本项目采用 MIT License - 详见 [LICENSE](LICENSE) 文件
-
----
-
-## 🙏 致谢
-
-- [FastAPI](https://fastapi.tiangolo.com/) - 高性能 Python Web 框架
-- [React](https://react.dev/) - 用户界面库
-- [jieba](https://github.com/fxsjy/jieba) - 中文分词工具
-- [rank_bm25](https://github.com/dorianbrown/rank_bm25) - BM25 算法实现
-- [LangChain](https://www.langchain.com/) - LLM 应用开发框架
-
----
-
-<div align="center">
-
-**⭐ 如果这个项目对你有帮助，请给个 Star！⭐**
-
-</div>
+[MIT](LICENSE)

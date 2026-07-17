@@ -1,52 +1,52 @@
 #!/bin/bash
+set -e
 
-# Hybrid RAG 启动脚本
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PID_DIR="${TMPDIR:-/tmp}/zhiyuan-knowledge-workspace"
+BACKEND_PID_FILE="$PID_DIR/backend.pid"
+FRONTEND_PID_FILE="$PID_DIR/frontend.pid"
 
-echo "=========================================="
-echo "  Hybrid RAG 智能问答系统启动脚本"
-echo "=========================================="
+mkdir -p "$PID_DIR"
 
-# 检查 .env 文件
-if [ ! -f "backend/.env" ]; then
-    echo "⚠️  未找到 backend/.env 文件"
-    echo "正在从模板创建..."
-    cp backend/.env.example backend/.env
-    echo "请编辑 backend/.env 文件，填入您的 OpenAI API Key"
-    echo "然后重新运行此脚本"
+if [ ! -f "$ROOT_DIR/backend/.env" ]; then
+    echo "⚠️  未找到 backend/.env"
+    cp "$ROOT_DIR/backend/.env.example" "$ROOT_DIR/backend/.env"
+    echo "已创建配置模板，请填写 API 配置后重新启动。"
     exit 1
 fi
 
-# 启动后端
-echo "🚀 启动后端服务..."
-cd backend
-uv run uvicorn app.main:app --reload --port 8000 &
+if [ ! -x "$ROOT_DIR/backend/.venv/bin/uvicorn" ]; then
+    echo "⚠️  后端依赖未安装，请先运行: cd backend && uv sync"
+    exit 1
+fi
+
+if [ ! -x "$ROOT_DIR/frontend/node_modules/.bin/vite" ]; then
+    echo "⚠️  前端依赖未安装，请先运行: cd frontend && npm install"
+    exit 1
+fi
+
+cleanup() {
+    "$ROOT_DIR/stop.sh" >/dev/null 2>&1 || true
+}
+
+trap cleanup INT TERM EXIT
+
+echo "🚀 启动知源文档知识工作台"
+
+cd "$ROOT_DIR/backend"
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8002 &
 BACKEND_PID=$!
-cd ..
+echo "$BACKEND_PID" > "$BACKEND_PID_FILE"
 
-# 等待后端启动
-sleep 3
-
-# 启动前端
-echo "🚀 启动前端服务..."
-cd frontend
-npm run dev &
+cd "$ROOT_DIR/frontend"
+./node_modules/.bin/vite --host 127.0.0.1 &
 FRONTEND_PID=$!
-cd ..
+echo "$FRONTEND_PID" > "$FRONTEND_PID_FILE"
 
 echo ""
-echo "=========================================="
-echo "  ✅ 系统已启动！"
-echo "=========================================="
-echo ""
-echo "  前端地址: http://localhost:5173"
-echo "  后端地址: http://localhost:8000"
-echo "  API 文档: http://localhost:8000/docs"
-echo ""
-echo "  按 Ctrl+C 停止所有服务"
-echo "=========================================="
+echo "前端地址: http://localhost:5175"
+echo "后端地址: http://localhost:8002"
+echo "API 文档: http://localhost:8002/docs"
+echo "按 Ctrl+C 停止本项目服务"
 
-# 捕获退出信号
-trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT TERM
-
-# 等待
-wait
+wait "$BACKEND_PID" "$FRONTEND_PID"

@@ -1,20 +1,26 @@
 #!/bin/bash
 
-# Hybrid RAG 停止脚本
+PID_DIR="${TMPDIR:-/tmp}/zhiyuan-knowledge-workspace"
 
-echo "=========================================="
-echo "  停止 Hybrid RAG 服务"
-echo "=========================================="
+stop_process() {
+    local name="$1"
+    local pid_file="$2"
 
-# 停止后端
-echo "🛑 停止后端服务..."
-pkill -f uvicorn 2>/dev/null && echo "   ✅ 后端已停止" || echo "   ⚠️  后端未在运行"
+    if [ ! -f "$pid_file" ]; then
+        echo "• $name 未记录运行进程"
+        return
+    fi
 
-# 停止前端
-echo "🛑 停止前端服务..."
-pkill -f vite 2>/dev/null && echo "   ✅ 前端已停止" || echo "   ⚠️  前端未在运行"
+    local pid
+    pid="$(cat "$pid_file")"
+    if kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+        echo "✓ $name 已停止 (PID $pid)"
+    else
+        echo "• $name 已不在运行"
+    fi
+    rm -f "$pid_file"
+}
 
-echo ""
-echo "=========================================="
-echo "  ✅ 所有服务已停止"
-echo "=========================================="
+stop_process "后端" "$PID_DIR/backend.pid"
+stop_process "前端" "$PID_DIR/frontend.pid"

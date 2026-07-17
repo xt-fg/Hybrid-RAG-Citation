@@ -1,139 +1,139 @@
+import { useState } from 'react';
 import type { Message } from '../types';
 
 interface ChatMessageProps {
   message: Message;
   onCitationClick: (docId: string) => void;
+  onRetry: () => void;
+  onConfigureApi: () => void;
+  isLoading: boolean;
 }
 
-export function ChatMessage({ message, onCitationClick }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  onCitationClick,
+  onRetry,
+  onConfigureApi,
+  isLoading,
+}: ChatMessageProps) {
+  const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
+  const safeContent = typeof message.content === 'string' ? message.content : String(message.content ?? '');
 
   const renderContent = (content: string) => {
-    // Force space before/after [Doc_X]
     const normalized = content
       .replace(/([^\s])\[/g, '$1 [')
-      .replace(/\]([^\s.,;:!?])/g, '] $1')
-      .replace(/\](\s)/g, '] $1');
-    const parts = normalized.split(/(\[Doc_\d+\])/g);
+      .replace(/\]([^\s.,;:!?，。；：！？])/g, '] $1');
+    const parts = normalized.split(/(\[(?:K_[A-Za-z0-9]+_\d+|Doc_\d+)\])/g);
+
     return parts.map((part, index) => {
-      const citationMatch = part.match(/\[Doc_(\d+)\]/);
-      if (citationMatch) {
-        const docId = `Doc_${citationMatch[1]}`;
+      const citationMatch = part.match(/^\[((?:K_[A-Za-z0-9]+_\d+)|(?:Doc_\d+))\]$/);
+      if (!citationMatch) return <span key={index}>{part}</span>;
+
+      const docId = citationMatch[1];
+      let targetDocId = docId;
+      let citationIndex = Array.isArray(message.citations)
+        ? message.citations.findIndex((item) => item.doc_id === docId)
+        : -1;
+      let sourceTitle = citationIndex >= 0 ? message.citations?.[citationIndex]?.doc_source : undefined;
+
+      // Compatibility for answers created before the backend translated
+      // prompt-facing [Doc_N] aliases into stable chunk IDs.
+      const legacyMatch = docId.match(/^Doc_(\d+)$/);
+      if (legacyMatch && Array.isArray(message.retrievedDocs)) {
+        const legacyIndex = Number(legacyMatch[1]) - 1;
+        const matchedResult = message.retrievedDocs[legacyIndex];
+        if (matchedResult) {
+          targetDocId = matchedResult.doc.id;
+          const verifiedIndex = Array.isArray(message.citations)
+            ? message.citations.findIndex((item) => item.doc_id === targetDocId)
+            : -1;
+          citationIndex = verifiedIndex >= 0 ? verifiedIndex : legacyIndex;
+          sourceTitle = matchedResult.doc.source;
+        }
+      }
+      if (citationIndex < 0) {
         return (
-          <button
-            key={index}
-            onClick={() => onCitationClick(docId)}
-            style={{
-              display: 'inline-block',
-              verticalAlign: 'middle',
-              padding: '3px 8px',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: '#7c3aed',
-              backgroundColor: '#ede9fe',
-              borderRadius: '6px',
-              border: 'none',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              lineHeight: '1.2',
-              marginLeft: '4px',
-              marginRight: '4px',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#ddd6fe';
-              e.currentTarget.style.color = '#6d28d9';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#ede9fe';
-              e.currentTarget.style.color = '#7c3aed';
-            }}
-          >
-            {part}
-          </button>
+          <span key={index} className="unverified-citation" title={`${part} 超出本次检索来源范围`}>
+            引用未验证
+          </span>
         );
       }
-      return <span key={index}>{part}</span>;
+
+      return (
+        <button
+          key={index}
+          className="citation-chip"
+          type="button"
+          onClick={() => onCitationClick(targetDocId)}
+          title={sourceTitle}
+        >
+          来源 {citationIndex + 1}
+        </button>
+      );
     });
   };
 
+  const timestamp = message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp);
+  const formattedTime = timestamp.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
   if (isUser) {
     return (
-      <div className="flex justify-end" style={{ marginTop: '20px', marginBottom: '24px' }}>
-        <div style={{
-          maxWidth: '75%',
-          borderRadius: '16px',
-          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-          color: 'white',
-          padding: '14px 18px',
-          boxShadow: '0 2px 8px rgba(59,130,246,0.25)',
-        }}>
-          <div className="whitespace-pre-wrap" style={{ lineHeight: '1.6', fontSize: '15px' }}>
-            {message.content}
-          </div>
-          <div style={{ marginTop: '6px', textAlign: 'right' }}>
-            <span style={{ fontSize: '12px', color: 'rgba(191,219,254,0.8)' }}>
-              {message.timestamp.toLocaleTimeString()}
-            </span>
-          </div>
+      <div className="message-row user-row">
+        <div className="user-message">
+          <div className="message-text">{safeContent}</div>
+          <time>{formattedTime}</time>
         </div>
       </div>
     );
   }
 
+  const copyAnswer = async () => {
+    try {
+      await navigator.clipboard.writeText(safeContent);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
   return (
-    <div className="flex justify-start" style={{ marginBottom: '24px' }}>
-      {/* Avatar */}
-      <div style={{
-        width: '36px',
-        height: '36px',
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        marginRight: '12px',
-        marginTop: '16px',
-        boxShadow: '0 2px 6px rgba(139,92,246,0.3)',
-      }}>
-        <span style={{ color: 'white', fontSize: '12px', fontWeight: 700 }}>AI</span>
+    <div className="message-row assistant-row">
+      <div className={`assistant-avatar ${message.status === 'error' ? 'error' : ''}`}>
+        {message.status === 'error' ? '!' : '知'}
       </div>
-      {/* Card */}
-      <div style={{
-        flex: 1,
-        maxWidth: 'calc(100% - 48px)',
-        borderRadius: '16px',
-        background: 'white',
-        border: '1px solid #e5e7eb',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-        overflow: 'hidden',
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '14px 18px 10px 18px',
-          borderBottom: '1px solid #f3f4f6',
-          display: 'flex',
-          alignItems: 'center',
-        }}>
-          <span style={{ fontSize: '15px', fontWeight: 500, color: '#374151' }}>Hybrid RAG Assistant</span>
-        </div>
-        {/* Body */}
-        <div style={{
-          padding: '14px 18px',
-          fontSize: '15px',
-          color: '#1f2937',
-          lineHeight: '1.7',
-        }}>
-          {renderContent(message.content)}
-        </div>
-        {/* Footer */}
-        <div style={{ padding: '4px 18px 12px 18px' }}>
-          <span style={{ fontSize: '12px', color: '#6b7280' }}>
-            {message.timestamp.toLocaleTimeString()}
-          </span>
-        </div>
-      </div>
+      <article className={`assistant-message ${message.status === 'error' ? 'error-message' : ''}`}>
+        <header>
+          <div>
+            <strong>{message.status === 'error' ? '请求未完成' : '知源助手'}</strong>
+            {message.status !== 'error' && <span>基于知识库回答</span>}
+          </div>
+        </header>
+        <div className="assistant-body">{renderContent(safeContent)}</div>
+        <footer>
+          <time>{formattedTime}</time>
+          {message.status !== 'error' && (
+            <button type="button" onClick={copyAnswer}>
+              {copied ? '已复制' : '复制回答'}
+            </button>
+          )}
+          {message.status === 'error' && (
+            <div className="error-actions">
+              <button type="button" onClick={onConfigureApi}>更新 API 配置</button>
+              <button className="retry-button" type="button" onClick={onRetry} disabled={isLoading || !message.retryQuery}>
+                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M5.5 15a7 7 0 0 0 11.7 2.6L20 14M4 10l2.8-3.6A7 7 0 0 1 18.5 9" />
+                </svg>
+                重试
+              </button>
+            </div>
+          )}
+        </footer>
+      </article>
     </div>
   );
 }

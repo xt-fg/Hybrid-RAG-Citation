@@ -13,7 +13,6 @@ pip-delete-this-directory.txt
 
 # uv
 .uv/
-uv.lock
 
 # Node
 node_modules/
@@ -46,6 +45,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Runtime knowledge-base data
+backend/storage/
 
 # Testing
 .coverage
