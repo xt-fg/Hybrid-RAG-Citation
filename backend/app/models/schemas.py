@@ -1,7 +1,7 @@
 """Pydantic models for request/response"""
 from pydantic import BaseModel, Field, SecretStr
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 
 class DocumentChunk(BaseModel):
@@ -32,11 +32,18 @@ class ProviderConfig(BaseModel):
     embedding_model: Optional[str] = Field(None, max_length=200)
 
 
+class ConversationTurn(BaseModel):
+    """A bounded user/assistant turn supplied as conversational context."""
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000)
+
+
 class QueryRequest(BaseModel):
     """Query request"""
     query: str = Field(..., min_length=1, max_length=1000, description="User query")
     top_k: Optional[int] = Field(5, ge=1, le=20, description="Number of results")
     provider_config: Optional[ProviderConfig] = None
+    history: List[ConversationTurn] = Field(default_factory=list, max_length=12)
 
 
 class Citation(BaseModel):

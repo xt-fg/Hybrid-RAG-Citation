@@ -1,4 +1,6 @@
-from app.models.schemas import DocumentChunk, SearchResult
+from langchain_core.messages import AIMessage, HumanMessage
+
+from app.models.schemas import ConversationTurn, DocumentChunk, SearchResult
 from app.services.llm_service import LLMService
 
 
@@ -61,3 +63,15 @@ def test_prompt_explicitly_limits_available_citation_aliases():
 
     assert "[Doc_1]、[Doc_2]、[Doc_3]" in prompt
     assert "严禁输出不存在或超出上述范围" in prompt
+
+
+def test_conversation_history_is_forwarded_without_stale_citation_ids():
+    messages = LLMService._build_history_messages([
+        ConversationTurn(role="user", content="上一轮问题是什么？"),
+        ConversationTurn(role="assistant", content="上一轮结论 [K_alpha_1]。"),
+    ])
+
+    assert isinstance(messages[0], HumanMessage)
+    assert isinstance(messages[1], AIMessage)
+    assert messages[0].content == "上一轮问题是什么？"
+    assert messages[1].content == "上一轮结论。"

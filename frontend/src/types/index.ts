@@ -45,10 +45,16 @@ export interface ProviderConfig {
   embedding_model: string;
 }
 
+export interface ConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface QueryRequest {
   query: string;
   top_k?: number;
   provider_config?: ProviderConfig;
+  history?: ConversationTurn[];
 }
 
 export interface QueryResponse {

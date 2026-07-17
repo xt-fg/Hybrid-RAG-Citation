@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.api import routes
 from app.core.config import Settings
 from app.main import app
+from app.models.schemas import QueryRequest
 from app.services.document_store import DocumentStore
 
 
@@ -107,3 +108,46 @@ def test_delete_rebuilds_index_with_frontend_provider_config(tmp_path: Path, mon
     assert delete_response.status_code == 200
     assert len(captured_configs) == 1
     assert captured_configs[0].embedding_api_key.get_secret_value() == "browser-key"
+
+
+def test_referential_follow_up_uses_previous_user_question():
+    request = QueryRequest.model_validate({
+        "query": "第二点是什么意思？",
+        "history": [
+            {"role": "user", "content": "文档中的风险控制措施有哪些？"},
+            {"role": "assistant", "content": "一、身份校验。二、操作审计。"},
+        ],
+    })
+
+    assert routes.build_retrieval_query(request) == (
+        "文档中的风险控制措施有哪些？\n第二点是什么意思？"
+    )
+
+
+def test_upload_rolls_back_when_index_rebuild_fails(tmp_path: Path, monkeypatch):
+    configure_temporary_store(tmp_path, monkeypatch)
+    calls = 0
+
+    def fail_for_non_empty_index(documents, provider_config=None, build_dense=True):
+        nonlocal calls
+        calls += 1
+        if documents:
+            raise RuntimeError("index failed")
+
+    monkeypatch.setattr(
+        routes.hybrid_retriever,
+        "replace_documents",
+        fail_for_non_empty_index,
+    )
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/documents",
+            files={"file": ("rollback.txt", "不应残留".encode(), "text/plain")},
+        )
+
+    assert response.status_code == 500
+    assert "文档已回滚" in response.json()["detail"]
+    assert routes.document_store.list_documents() == []
+    assert list(routes.document_store.upload_dir.iterdir()) == []
+    assert calls == 2

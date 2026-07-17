@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Citation, KnowledgeDocument, Message, ProviderConfig, SearchResult } from './types';
+import type {
+  Citation,
+  ConversationTurn,
+  KnowledgeDocument,
+  Message,
+  ProviderConfig,
+  SearchResult,
+} from './types';
 import {
   deleteDocument,
   listDocuments,
@@ -61,6 +68,61 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function isResultFromDocument(result: SearchResult, documentId: string): boolean {
+  return result.doc.metadata?.document_id === documentId;
+}
+
+function removeDocumentReferences(message: Message, documentId: string): Message {
+  const retrievedDocs = message.retrievedDocs || [];
+  const removedChunkIds = new Set(
+    retrievedDocs
+      .filter((result) => isResultFromDocument(result, documentId))
+      .map((result) => result.doc.id),
+  );
+  if (removedChunkIds.size === 0) return message;
+
+  const content = message.content.replace(
+    /\[(K_[A-Za-z0-9]+_\d+|Doc_\d+)\]/g,
+    (marker, sourceId: string) => {
+      if (sourceId.startsWith('Doc_')) {
+        const legacyIndex = Number(sourceId.slice(4)) - 1;
+        const legacyResult = retrievedDocs[legacyIndex];
+        if (!legacyResult || removedChunkIds.has(legacyResult.doc.id)) {
+          return '［来源已删除］';
+        }
+        return `[${legacyResult.doc.id}]`;
+      }
+      return removedChunkIds.has(sourceId) ? '［来源已删除］' : marker;
+    },
+  );
+
+  return {
+    ...message,
+    content,
+    citations: message.citations?.filter((citation) => !removedChunkIds.has(citation.doc_id)),
+    retrievedDocs: retrievedDocs.filter((result) => !removedChunkIds.has(result.doc.id)),
+  };
+}
+
+function buildConversationHistory(
+  messages: Message[],
+  currentQuery: string,
+  isRetry: boolean,
+): ConversationTurn[] {
+  const history = messages
+    .filter((message) => message.status !== 'error')
+    .map((message) => ({ role: message.role, content: message.content }));
+
+  const lastTurn = history.at(-1);
+  if (isRetry && lastTurn?.role === 'user' && lastTurn.content === currentQuery) {
+    history.pop();
+  }
+
+  return history
+    .slice(-12)
+    .map((turn) => ({ ...turn, content: turn.content.slice(0, 4000) }));
+}
+
 function App() {
   const [messages, setMessages] = useState<Message[]>(loadMessages);
   const lastAnswer = [...messages].reverse().find((message) => message.role === 'assistant');
@@ -78,6 +140,7 @@ function App() {
   const [currentCitations, setCurrentCitations] = useState<Citation[]>(lastAnswer?.citations || []);
   const [currentDocs, setCurrentDocs] = useState<SearchResult[]>(lastAnswer?.retrievedDocs || []);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const queryInFlightRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -133,7 +196,9 @@ function App() {
   const hasFrontendApi = Boolean(providerConfig.llm_api_key || providerConfig.embedding_api_key);
 
   const executeQuery = async (content: string, appendUserMessage: boolean) => {
-    if (documents.length === 0) return;
+    if (documents.length === 0 || queryInFlightRef.current) return;
+    queryInFlightRef.current = true;
+    const history = buildConversationHistory(messages, content, !appendUserMessage);
     if (appendUserMessage) {
       const userMessage: Message = {
         id: createId(),
@@ -150,6 +215,7 @@ function App() {
         query: content,
         top_k: 6,
         provider_config: providerConfig,
+        history,
       });
       const answer = typeof response.answer === 'string'
         ? response.answer
@@ -177,6 +243,7 @@ function App() {
         retryQuery: content,
       }]);
     } finally {
+      queryInFlightRef.current = false;
       setIsLoading(false);
     }
   };
@@ -185,7 +252,7 @@ function App() {
 
   const handleRetry = async (message: Message, retryQuery?: string) => {
     const query = retryQuery || message.retryQuery;
-    if (!query || isLoading) return;
+    if (!query || queryInFlightRef.current) return;
     setMessages((previous) => previous.filter((item) => item.id !== message.id));
     await executeQuery(query, false);
   };
@@ -235,7 +302,26 @@ function App() {
     try {
       await deleteDocument(document.id, providerConfig);
       setDocuments((previous) => previous.filter((item) => item.id !== document.id));
-      setNotice({ type: 'success', text: `${document.name} 已删除` });
+      setMessages((previous) => (
+        previous.map((message) => removeDocumentReferences(message, document.id))
+      ));
+
+      const removedCurrentChunkIds = new Set(
+        currentDocs
+          .filter((result) => isResultFromDocument(result, document.id))
+          .map((result) => result.doc.id),
+      );
+      const remainingCurrentDocs = currentDocs.filter(
+        (result) => !removedCurrentChunkIds.has(result.doc.id),
+      );
+      setCurrentDocs(remainingCurrentDocs);
+      setCurrentCitations((previous) => (
+        previous.filter((citation) => !removedCurrentChunkIds.has(citation.doc_id))
+      ));
+      if (currentDocs.length > 0 && remainingCurrentDocs.length === 0) {
+        setIsSourcesOpen(false);
+      }
+      setNotice({ type: 'success', text: `${document.name} 已删除，历史引用已更新` });
     } catch (error) {
       setNotice({ type: 'error', text: error instanceof Error ? error.message : '删除失败' });
     }
@@ -262,6 +348,7 @@ function App() {
   };
 
   const startNewConversation = () => {
+    if (queryInFlightRef.current) return;
     setMessages([]);
     setCurrentCitations([]);
     setCurrentDocs([]);
@@ -376,7 +463,7 @@ function App() {
               ) : (
                 <div className="suggestion-grid">
                   {['总结这些资料的核心观点', '不同文档之间有哪些共同结论？', '列出关键数据并标注来源'].map((question) => (
-                    <button key={question} type="button" onClick={() => handleSend(question)}>{question}<span>→</span></button>
+                    <button key={question} type="button" onClick={() => handleSend(question)} disabled={isLoading}>{question}<span>→</span></button>
                   ))}
                 </div>
               )}

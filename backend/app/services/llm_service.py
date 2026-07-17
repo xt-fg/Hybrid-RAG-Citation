@@ -2,8 +2,8 @@
 import re
 from typing import List
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage, SystemMessage
-from app.models.schemas import Citation, ProviderConfig, SearchResult
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from app.models.schemas import Citation, ConversationTurn, ProviderConfig, SearchResult
 from app.core.config import get_settings
 
 
@@ -77,6 +77,7 @@ class LLMService:
         query: str,
         search_results: List[SearchResult],
         provider_config: ProviderConfig | None = None,
+        history: List[ConversationTurn] | None = None,
     ) -> tuple[str, List[Citation]]:
         """Generate answer with citations
         
@@ -99,10 +100,9 @@ class LLMService:
 请根据以上参考文档回答问题，并在每个陈述句后附带引用。
 只能使用 [Doc_1] 到 [Doc_{len(search_results)}]，不得生成范围外编号。"""
         
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_message)
-        ]
+        messages = [SystemMessage(content=system_prompt)]
+        messages.extend(self._build_history_messages(history or []))
+        messages.append(HumanMessage(content=user_message))
         
         # Generate response
         response = self._get_llm(provider_config).invoke(messages)
@@ -111,6 +111,23 @@ class LLMService:
         
         citations = self._build_citations(answer, search_results)
         return answer, citations
+
+    @staticmethod
+    def _build_history_messages(history: List[ConversationTurn]) -> list[BaseMessage]:
+        """Convert prior turns while removing stale citation identifiers."""
+        messages = []
+        for turn in history:
+            content = re.sub(
+                r"\[(?:K_[A-Za-z0-9]+_\d+|Doc_\d+)\]",
+                "",
+                turn.content,
+            ).strip()
+            content = re.sub(r"\s+([，。；：！？,.])", r"\1", content)
+            if not content:
+                continue
+            message_type = HumanMessage if turn.role == "user" else AIMessage
+            messages.append(message_type(content=content))
+        return messages
 
     @staticmethod
     def _resolve_citation_aliases(answer: str, search_results: List[SearchResult]) -> str:

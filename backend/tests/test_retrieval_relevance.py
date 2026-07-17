@@ -55,3 +55,22 @@ def test_initialize_restores_dense_index_with_server_config(monkeypatch):
 
     assert captured_documents == documents
     assert retriever.dense_available is True
+
+
+def test_query_time_dense_failure_degrades_to_sparse(monkeypatch):
+    retriever = HybridRetriever()
+    documents = [chunk("K_fallback_1", "苹果公司的风险控制措施")]
+    retriever.replace_documents(documents, build_dense=False)
+    retriever.dense_available = True
+
+    def fail_dense_query(query, top_k=10):
+        raise RuntimeError("embedding provider unavailable")
+
+    monkeypatch.setattr(retriever.dense_retriever, "get_rank_map", fail_dense_query)
+
+    results = retriever.search("苹果公司", top_k=5)
+
+    assert [result.doc.id for result in results] == ["K_fallback_1"]
+    assert results[0].source_type == "bm25"
+    assert retriever.dense_available is False
+    assert "已降级为 BM25" in retriever.dense_error

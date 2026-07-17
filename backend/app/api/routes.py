@@ -1,5 +1,6 @@
 """API routes for the document knowledge workspace."""
 import json
+import re
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
@@ -23,6 +24,24 @@ hybrid_retriever = HybridRetriever()
 llm_service = LLMService()
 document_store = DocumentStore(get_settings())
 
+FOLLOW_UP_PATTERN = re.compile(
+    r"(它|其|这个|这些|这份|那个|那些|上述|前述|前者|后者|其中|"
+    r"第[一二三四五六七八九十\d]+|继续|展开|详细说明)"
+)
+
+
+def build_retrieval_query(request: QueryRequest) -> str:
+    """Resolve short referential follow-ups with the previous user question."""
+    if len(request.query) > 80 or not FOLLOW_UP_PATTERN.search(request.query):
+        return request.query
+    previous_user_turn = next(
+        (turn for turn in reversed(request.history) if turn.role == "user"),
+        None,
+    )
+    if previous_user_turn is None:
+        return request.query
+    return f"{previous_user_turn.content}\n{request.query}"
+
 
 def initialize_services() -> None:
     """Load persisted chunks into the retrieval service."""
@@ -42,7 +61,7 @@ async def query_documents(request: QueryRequest):
     try:
         # Perform hybrid retrieval
         search_results = hybrid_retriever.search(
-            query=request.query,
+            query=build_retrieval_query(request),
             top_k=request.top_k
         )
         
@@ -63,6 +82,7 @@ async def query_documents(request: QueryRequest):
             query=request.query,
             search_results=search_results,
             provider_config=request.provider_config,
+            history=request.history,
         )
         
         return QueryResponse(
@@ -107,7 +127,22 @@ async def upload_document(
             except (json.JSONDecodeError, ValueError) as exc:
                 raise ValueError("API 配置格式无效") from exc
         document = document_store.add_document(file.filename or "document", content)
-        hybrid_retriever.replace_documents(document_store.list_chunks(), parsed_config)
+        try:
+            hybrid_retriever.replace_documents(document_store.list_chunks(), parsed_config)
+        except Exception as index_exc:
+            rollback_succeeded = document_store.delete_document(document.id)
+            if rollback_succeeded:
+                try:
+                    hybrid_retriever.replace_documents(
+                        document_store.list_chunks(),
+                        parsed_config,
+                    )
+                except Exception:
+                    # Preserve the original indexing error. The next restart or
+                    # successful mutation will rebuild the in-memory index.
+                    pass
+                raise RuntimeError("索引更新失败，文档已回滚") from index_exc
+            raise RuntimeError("索引更新失败，且文档回滚失败") from index_exc
         return document
     except (UnsupportedDocumentError, ValueError) as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

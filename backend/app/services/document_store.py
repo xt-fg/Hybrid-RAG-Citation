@@ -63,7 +63,8 @@ class DocumentStore:
             raise ValueError("没有从文件中解析出可检索的文字")
 
         stored_name = f"{document_id}{suffix}"
-        (self.upload_dir / stored_name).write_bytes(content)
+        stored_path = self.upload_dir / stored_name
+        stored_path.write_bytes(content)
         document = KnowledgeDocument(
             id=document_id,
             name=safe_name,
@@ -73,14 +74,18 @@ class DocumentStore:
             created_at=datetime.now(timezone.utc),
         )
 
-        with self._lock:
-            manifest = self._read_manifest_unlocked()
-            manifest.append({
-                "document": document.model_dump(mode="json"),
-                "stored_name": stored_name,
-                "chunks": [chunk.model_dump(mode="json") for chunk in chunks],
-            })
-            self._write_manifest_unlocked(manifest)
+        try:
+            with self._lock:
+                manifest = self._read_manifest_unlocked()
+                manifest.append({
+                    "document": document.model_dump(mode="json"),
+                    "stored_name": stored_name,
+                    "chunks": [chunk.model_dump(mode="json") for chunk in chunks],
+                })
+                self._write_manifest_unlocked(manifest)
+        except Exception:
+            stored_path.unlink(missing_ok=True)
+            raise
         return document
 
     def delete_document(self, document_id: str) -> bool:

@@ -100,7 +100,14 @@ class HybridRetriever:
         """Search with RRF fusion"""
         # Get rank maps from both retrievers
         sparse_rank_map = self.sparse_retriever.get_rank_map(query, top_k=top_k * 2)
-        dense_rank_map = self.dense_retriever.get_rank_map(query, top_k=top_k * 2)
+        try:
+            dense_rank_map = self.dense_retriever.get_rank_map(query, top_k=top_k * 2)
+        except Exception as exc:
+            # A provider that becomes unavailable after indexing must not break
+            # lexical retrieval for the whole request path.
+            self.dense_available = False
+            self.dense_error = f"查询向量生成失败，已降级为 BM25：{exc}"
+            return self.sparse_retriever.search(query, top_k)
         
         # Fuse using RRF
         results = self.rrf_fusion.fuse_weighted(
