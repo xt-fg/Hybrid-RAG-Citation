@@ -1,19 +1,37 @@
-# 知源 · 文档知识工作台
+<div align="center">
 
-一个可实际使用的文档知识库：上传自己的 PDF、TXT 或 Markdown，系统完成解析与索引，再通过混合检索生成带有可核验原文引用的回答。
+# 🔍 知源 · Hybrid RAG Citation
 
-## 能力
+### 基于混合检索、RRF 融合与可验证引用的文档知识工作台
 
-- 真实文档入库：文件上传、文本提取、分块、持久化与删除
-- 混合检索：BM25 与 Embedding 双路召回，使用 RRF 融合排序
-- 自动降级：Embedding 在建索引或查询阶段不可用时保留 BM25 检索能力
-- 可验证引用：只接受回答中实际出现且属于本次检索结果的引用 ID
-- 原文溯源：引用保留文件名和 PDF 页码，可直接打开原始文件
-- 知识库工作台：文档状态、片段数量、文件大小和真实上传入口
-- 会话体验：最近 12 条有效消息参与多轮问答，支持本地保存、重新开始、复制回答和逐消息引用定位
-- 删除一致性：删除文档后同步清理来源面板，并在历史回答中标记已删除来源
-- 前端 API 配置：浏览器中的配置优先于服务器 `.env`，鉴权失败后可原地重试
-- 可部署：提供 Docker Compose、健康检查和持久化数据卷
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+</div>
+
+---
+
+## 📖 项目简介
+
+知源是一个可实际使用的文档知识库：上传自己的 PDF、TXT 或 Markdown，系统完成解析与索引，再通过混合检索生成带有可核验原文引用的回答。
+
+### ✨ 核心能力
+
+- 📥 **真实文档入库** - 文件上传、文本提取、分块、持久化与删除
+- 🔀 **混合检索引擎** - BM25 与 Embedding 双路召回，使用 RRF 融合排序
+- 🛟 **自动降级** - Embedding 在建索引或查询阶段不可用时保留 BM25 检索能力
+- 🔗 **可验证引用** - 只接受回答中实际出现且属于本次检索结果的引用 ID
+- 📄 **原文溯源** - 引用保留文件名和 PDF 页码，可直接打开原始文件
+- 🗂️ **知识库工作台** - 展示文档状态、片段数量、文件大小并提供真实上传入口
+- 💬 **多轮会话** - 最近 12 条有效消息参与问答，支持本地保存、重新开始和逐消息引用定位
+- 🧹 **删除一致性** - 删除文档后同步清理来源面板，并在历史回答中标记已删除来源
+- 🔑 **前端 API 配置** - 浏览器配置优先于服务器 `.env`，鉴权失败后可原地重试
+- 🐳 **完整部署支持** - 提供 Docker Compose、健康检查和持久化数据卷
+
+---
 
 ## 🏗️ 系统架构
 
@@ -53,7 +71,9 @@ graph TB
     style STORE fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
 ```
 
-## 使用流程
+---
+
+## 🔄 使用流程
 
 ```text
 上传文档 → 解析并分块 → 构建 BM25/向量索引
@@ -61,7 +81,9 @@ graph TB
 打开原文 ← 核验引用 ← 生成带引用的回答 ← 混合检索
 ```
 
-## 本地启动
+---
+
+## 🚀 本地启动
 
 需要 Python 3.10+、Node.js 18+ 和 [uv](https://docs.astral.sh/uv/)。
 
@@ -107,7 +129,9 @@ npm run dev
 
 也可以在仓库根目录运行 `./start.sh`，使用 `./stop.sh` 停止。
 
-## Docker 部署
+---
+
+## 🐳 Docker 部署
 
 配置好 `backend/.env` 后运行：
 
@@ -117,7 +141,9 @@ docker compose up --build -d
 
 访问 <http://localhost:8082>。上传文件和知识库清单保存在 `knowledge_data` 数据卷中。
 
-## API
+---
+
+## 📚 API 文档
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
@@ -137,7 +163,9 @@ curl http://localhost:8002/api/query \
   -d '{"query":"总结文档中的核心结论","top_k":6}'
 ```
 
-## 项目结构
+---
+
+## 📁 项目结构
 
 ```text
 backend/
@@ -157,14 +185,18 @@ frontend/
 compose.yaml               单节点部署编排
 ```
 
-运行质量检查：
+---
+
+## ✅ 质量检查
 
 ```bash
 cd backend && uv run pytest -q
 cd frontend && npm run lint && npm run build
 ```
 
-## 数据与边界
+---
+
+## ⚠️ 数据与边界
 
 - 默认上传上限为 25MB，可通过 `MAX_UPLOAD_MB` 调整。
 - BM25 只保留与问题存在词项重合的片段；向量结果默认最低相似度为 `0.2`，可通过 `DENSE_MIN_SCORE` 调整。
@@ -172,6 +204,16 @@ cd frontend && npm run lint && npm run build
 - 当前持久化方案面向单节点部署。需要多实例或大规模文档时，可将文档元数据迁移到 PostgreSQL，并将向量索引迁移到 pgvector、Qdrant 等存储。
 - 扫描版 PDF 需要额外接入 OCR；当前 PDF 解析提取文件内已有的文本层。
 
-## License
+---
+
+## 📄 License
 
 [MIT](LICENSE)
+
+---
+
+<div align="center">
+
+**⭐ 如果这个项目对你有帮助，请给个 Star！⭐**
+
+</div>
