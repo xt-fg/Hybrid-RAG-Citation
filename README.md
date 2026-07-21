@@ -15,6 +15,44 @@
 - 前端 API 配置：浏览器中的配置优先于服务器 `.env`，鉴权失败后可原地重试
 - 可部署：提供 Docker Compose、健康检查和持久化数据卷
 
+## 🏗️ 系统架构
+
+```mermaid
+graph TB
+    subgraph "前端 (React + TypeScript)"
+        UI[知识工作台<br/>对话与文档管理] --> |上传 / 提问| API
+        API --> |回答 + 引用| UI
+        UI --> REF[引用来源面板]
+        UI --> |API 配置| API
+    end
+
+    subgraph "后端 (FastAPI)"
+        API[API Layer] --> INGEST[文档入库]
+        INGEST --> PARSE[解析与分块<br/>PDF / TXT / Markdown]
+        API --> HYBRID[混合检索编排]
+        HYBRID --> SPARSE[稀疏检索<br/>jieba + BM25]
+        HYBRID --> DENSE[稠密检索<br/>OpenAI 兼容 Embedding]
+        SPARSE --> RRF[RRF 重排算法]
+        DENSE --> RRF
+        DENSE -.服务不可用.-> SPARSE
+        RRF --> LLM[LLM 生成<br/>多轮上下文 + 引用标注]
+        LLM --> VERIFY[引用 ID 校验]
+        VERIFY --> API
+    end
+
+    subgraph "数据层"
+        STORE[(持久化知识库<br/>documents.json + uploads/)]
+        PARSE --> STORE
+        STORE --> SPARSE
+        STORE --> DENSE
+    end
+
+    style RRF fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
+    style LLM fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style VERIFY fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style STORE fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+```
+
 ## 使用流程
 
 ```text
